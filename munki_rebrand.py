@@ -35,6 +35,7 @@ import argparse
 import sys
 import re
 import atexit
+import plistlib
 
 MUNKI_GITHUB = 'https://github.com/munki/munki'
 
@@ -164,6 +165,11 @@ def main():
                    default=None,
                    help="Build munki for DEP and other situations in which you "
                    "do not wish to force a reboot after munki is installed")
+    p.add_argument('-f', '--config-file', action='store',
+                   default=None,
+                   help="Use a configuration plist file to load defaults for "
+                   "each run of munki_rebrand.py. Consult the README for more "
+                   "details on the format of this file")
     p.add_argument('-i', '--icon-file', action='store',
                    default=None,
                    help="Optional icon file to replace Managed Software "
@@ -198,6 +204,22 @@ def main():
 
     # Some pre-checks
     precheck_errors = []
+
+    if args.config_file and isfile(args.config_file):
+        try:
+            plist = plistlib.readPlist(args.config_file)
+            plist.pop('config_file', None)
+            valid_args = [k for k in vars(args).keys()]
+            for arg in valid_args:
+                if not vars(args)[arg] and arg in plist.keys():
+                    vars(args)[arg] = plist[arg]
+        except:
+            precheck_errors.append(
+                'cannot read config file: %s.' % args.config_file)
+    else:
+        precheck_errors.append(
+            'config file %s does not exist' % args.config_file)
+
     if args.icon_file and not isfile(args.icon_file):
         precheck_errors.append(
             'Icon file %s does not exist' % args.icon_file)
